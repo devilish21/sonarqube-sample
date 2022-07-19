@@ -1,0 +1,51 @@
+pipeline {
+    agent {
+        label 'master'
+    }
+    tools {
+        maven 'maven'
+        SonarQube Scanner 'sonar'  
+    }
+    stages {
+        stage("cloning the project") {
+            steps {
+                git branch: 'paac', url: 'https://github.com/devopshydclub/vprofile-project.git'
+            }
+        }
+        stage("running mvn install") {
+            steps {
+                sh "mvn install"
+            }
+        }
+        stage("running mvn install") {
+            steps {
+                sh "mvn test"
+            }
+        }
+        stage("running checkstyle") {
+            steps {
+                sh "mvn checkstyle:checkstyle"
+            }
+        }
+        stage("running sonar scanner") {
+            environment {
+                scannerHome = tool 'sonar'
+            }
+            steps{
+                withSonarQubeEnv('sonarqube') {
+                    sh '''
+                    ${scannerHome}/bin/sonar-scanner -Dproject.settings=../sonarqube.properties
+                    '''
+                }           
+            }
+        }
+        stage("Quality Gate") {
+            steps {
+                timeout(time: 1, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+    }
+
+}
